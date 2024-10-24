@@ -7,25 +7,43 @@ use App\Services\SmartPay\NON_SEAMLESS_KIT\Crypto;
 
 class SmartPayController extends Controller
 {
-    public function showCheckoutForm()
+    public function showCheckoutForm(Request $request)
     {
-        // Sample data - you might retrieve this from a database or other sources
-        $orderId = 'ORDER12345';
-        $amount = '150.00';
-        $currency = 'USD';
+        
+        $request->validate([
+            'order_id' => 'required|string',
+            'order_amount' => 'required|numeric',
+            'currency' => 'required|string',
+        ]);
+
+        $orderId = $request->order_id;
+        $amount = $request->order_amount;
+        $currency = $request->currency;
 
         return view('payment-views.SmartPay.checkout', compact('orderId', 'amount', 'currency'));
     }
 
     public function processPayment(Request $request)
     {
-        $workingKey = env('SMART_PAY_WORKING_KEY'); // Retrieve your working key from .env
-        $accessCode = env('SMART_PAY_ACCESS_CODE'); // Retrieve your access code from .env
+        
+        $request->validate([
+            'order_id' => 'required|string',
+            'order_amount' => 'required|numeric',
+            'currency' => 'required|string',
+        ]);
+
+        $workingKey = env('SMART_PAY_WORKING_KEY');
+        $accessCode = env('SMART_PAY_ACCESS_CODE'); 
         $crypto = new Crypto();
 
-        // Build merchant data
-        $merchantData = http_build_query($request->except('_token'));
-        // Encrypt the data
+        $merchantData = http_build_query([
+            'order_id' => $request->order_id,
+            'amount' => $request->order_amount,
+            'currency' => $request->currency,
+        ]);
+
+        dd($merchantData);
+
         $encryptedData = $crypto->encrypt($merchantData, $workingKey);
 
         return view('payment-views.SmartPay.redirect', compact('encryptedData', 'accessCode'));
@@ -34,7 +52,7 @@ class SmartPayController extends Controller
     public function handleResponse(Request $request)
     {
         $crypto = new Crypto();
-        $workingKey = env('SMART_PAY_WORKING_KEY'); // Retrieve your working key from .env
+        $workingKey = env('SMART_PAY_WORKING_KEY'); 
 
         $encryptedResponse = $request->input('encResp');
         $decryptedResponse = $crypto->decrypt($encryptedResponse, $workingKey);
